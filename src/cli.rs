@@ -135,8 +135,6 @@ fn write_proc_macro_cargo_toml(path: PathBuf, name: &str) -> Result<(), Error> {
             "[lib]
 proc-macro = true
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 {name}_macro = {{ path = \"../{name}_macro\" }}
 syn = \"1\"
