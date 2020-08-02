@@ -4,6 +4,8 @@ description = "Kickstart a proc-macro project with a straight-forward template."
 version = "0.1.2"
 authors = ["Brendan Molloy <brendan@bbqsrc.net>"]
 repository = "https://github.com/bbqsrc/cargo-proc-macro"
+keywords = ["cargo", "proc-macro"]
+categories = ["command-line-utilities", "development-tools::cargo-plugins", "development-tools"]
 edition = "2018"
 license = "EUPL-1.2+"
 
