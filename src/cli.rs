@@ -223,7 +223,8 @@ pub(crate) fn run(args: Vec<String>) -> Result<(), Error> {
         }
         Ok(args) => args,
         Err(e) => {
-            eprintln!("{}", e);
+            eprintln!("error: {}\n", e);
+            Args::print_usage();
             exit(2);
         }
     };
