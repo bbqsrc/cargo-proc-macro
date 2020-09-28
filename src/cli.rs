@@ -9,6 +9,8 @@ use std::{
 
 use gumdrop::Options;
 
+mod templates;
+
 #[derive(Debug, Options)]
 struct Args {
     #[options(help = "show help information")]
@@ -77,83 +79,6 @@ impl Args {
     }
 }
 
-const ATTR_BASE_TMPL: &str = "extern crate proc_macro;
-
-use proc_macro::TokenStream;
-use syn::parse_macro_input;
-
-#[proc_macro_attribute]
-pub fn @NAME@(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let attr = parse_macro_input!(attr as proc_macro2::TokenStream);
-    let item = parse_macro_input!(item as proc_macro2::TokenStream);
-    
-    match @NAME@_macro::@NAME@(attr, item) {
-        Ok(tokens) => tokens.into(),
-        Err(err) => TokenStream::from(err.to_compile_error()),
-    }
-}
-";
-
-const ATTR_CRATE_TMPL: &str = "use proc_macro2::TokenStream;
-use quote::quote;
-
-pub fn @NAME@(attr: TokenStream, item: TokenStream) -> Result<TokenStream, syn::Error> {
-    // Implement your proc-macro logic here. :)
-    Ok(item)
-}
-";
-
-const DERIVE_BASE_TMPL: &str = "extern crate proc_macro;
-
-use proc_macro::TokenStream;
-use syn::parse_macro_input;
-
-#[proc_macro_derive(@NAME@)]
-pub fn derive_@NAME@(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let attr = parse_macro_input!(attr as proc_macro2::TokenStream);
-    let item = parse_macro_input!(item as proc_macro2::TokenStream);
-
-    match @NAME@_macro::derive_@NAME@(attr, item) {
-        Ok(tokens) => tokens.into(),
-        Err(err) => TokenStream::from(err.to_compile_error()),
-    }
-}
-";
-
-const DERIVE_CRATE_TMPL: &str = "use proc_macro2::TokenStream;
-use quote::quote;
-
-pub fn derive_@NAME@(item: TokenStream) -> Result<TokenStream, syn::Error> {
-    // Implement your proc-macro logic here. :)
-    Ok(item)
-}
-";
-
-const FUNCTION_BASE_TMPL: &str = "extern crate proc_macro;
-
-use proc_macro::TokenStream;
-use syn::parse_macro_input;
-
-#[proc_macro]
-pub fn @NAME@(item: TokenStream) -> TokenStream {
-    let item = parse_macro_input!(item as proc_macro2::TokenStream);
-
-    match @NAME@_macro::@NAME@(item) {
-        Ok(tokens) => tokens.into(),
-        Err(err) => TokenStream::from(err.to_compile_error()),
-    }
-}
-";
-
-const FUNCTION_CRATE_TMPL: &str = "use proc_macro2::TokenStream;
-use quote::quote;
-
-pub fn @NAME@(item: TokenStream) -> Result<TokenStream, syn::Error> {
-    // Implement your proc-macro logic here. :)
-    Ok(item)
-}
-";
-
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum Error {
     #[error("Could not resolve a package name for the given directory.")]
@@ -202,7 +127,7 @@ fn create_base_crate(path: &Path, name: &str) -> Result<(), Error> {
     let base_path = path.join(&name);
     cargo_new_lib(&base_path)?;
 
-    let lib_rs_output = ATTR_BASE_TMPL.replace("@NAME@", &name.replace("-", "_"));
+    let lib_rs_output = templates::ATTR_BASE_TMPL.replace("@NAME@", &name.replace("-", "_"));
     let lib_rs_path = base_path.join("src").join("lib.rs");
     fs::write(&lib_rs_path, lib_rs_output)
         .map_err(|e| Error::WriteFailed(e, lib_rs_path.clone()))?;
@@ -216,7 +141,7 @@ fn create_macro_crate(path: &Path, name: &str) -> Result<(), Error> {
     let macro_path = path.join(&format!("{}_macro", name));
     cargo_new_lib(&macro_path)?;
 
-    let lib_rs_output = ATTR_CRATE_TMPL.replace("@NAME@", &name.replace("-", "_"));
+    let lib_rs_output = templates::ATTR_CRATE_TMPL.replace("@NAME@", &name.replace("-", "_"));
     let lib_rs_path = path
         .join(&format!("{}_macro", name))
         .join("src")
