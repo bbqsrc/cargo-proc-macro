@@ -139,7 +139,7 @@ impl ProcMacroKind {
                  .replace("@SNAKE_NAME@", &snake_name),
             ProcMacroKind::Function =>
                 templates::FUNCTION_CRATE_TMPL
-                 .replace("@NAME@", &snake_name),
+                 .replace("@SNAKE_NAME@", &snake_name),
         }
     }
     pub fn workspace_msg(&self, name: &str) -> String {
