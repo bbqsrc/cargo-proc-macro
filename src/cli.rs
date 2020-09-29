@@ -101,13 +101,13 @@ enum ProcMacroKind {
 }
 
 impl std::str::FromStr for ProcMacroKind {
-    type Err = gumdrop::Error;
+    type Err = String;
     fn from_str(kind: &str) -> Result<Self, Self::Err> {
         match kind {
             "a" | "attr" | "attribute" => Ok(ProcMacroKind::Attr),
             "d" | "derive" => Ok(ProcMacroKind::Derive),
             "f" | "function" => Ok(ProcMacroKind::Function),
-            _ => Err(gumdrop::Error::failed_parse_with_name("kind".to_string(), kind.to_string())),
+            _ => Err(format!("`{}`", kind)),
         }
     }
 }
