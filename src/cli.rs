@@ -45,6 +45,13 @@ struct NewArgs {
     #[options(free, help = "Create a new proc-macro crate set at <path>")]
     path: PathBuf,
 
+    #[options(default = "attribute",
+              help = "Specify the proc-macro kind:
+                     \tattribute: --kind={a, attr, attribute}
+                     \tderive: --kind={d, derive}
+                     \tfunction-like: --kind={f, function}")]
+    kind: ProcMacroKind,
+
     #[options(help = "Prints help information")]
     help: bool,
 }
@@ -59,6 +66,13 @@ struct InitArgs {
 
     #[options(free, help = "Create a new proc-macro crate set at <path>")]
     path: Option<PathBuf>,
+
+    #[options(default = "attribute",
+              help = "Specify the proc-macro kind:
+                     \tattribute: --kind={a, attr, attribute}
+                     \tderive: --kind={d, derive}
+                     \tfunction-like: --kind={f, function}")]
+    kind: ProcMacroKind,
 
     #[options(help = "Prints help information")]
     help: bool,
@@ -86,19 +100,33 @@ enum ProcMacroKind {
     Function,
 }
 
+impl std::str::FromStr for ProcMacroKind {
+    type Err = gumdrop::Error;
+    fn from_str(kind: &str) -> Result<Self, Self::Err> {
+        match kind {
+            "a" | "attr" | "attribute" => Ok(ProcMacroKind::Attr),
+            "d" | "derive" => Ok(ProcMacroKind::Derive),
+            "f" | "function" => Ok(ProcMacroKind::Function),
+            _ => Err(gumdrop::Error::failed_parse_with_name("kind".to_string(), kind.to_string())),
+        }
+    }
+}
+
 impl ProcMacroKind {
     pub fn base_impl(&self, name: &str) -> String {
+        let snake_name = name.replace("-", "_");
         match self {
-            ProcMacroKind::Attr => templates::ATTR_BASE_TMPL.replace("@NAME@", &name.replace("-", "_")),
-            ProcMacroKind::Derive => templates::DERIVE_BASE_TMPL.to_string(),
-            ProcMacroKind::Function => templates::FUNCTION_BASE_TMPL.to_string(),
+            ProcMacroKind::Attr => templates::ATTR_BASE_TMPL.replace("@NAME@", &snake_name),
+            ProcMacroKind::Derive => templates::DERIVE_BASE_TMPL.replace("@NAME@", &snake_name),
+            ProcMacroKind::Function => templates::FUNCTION_BASE_TMPL.replace("@NAME@", &snake_name),
         }
     }
     pub fn crate_impl(&self, name: &str) -> String {
+        let snake_name = name.replace("-", "_");
         match self {
-            ProcMacroKind::Attr => templates::ATTR_CRATE_TMPL.replace("@NAME@", &name.replace("-", "_")),
-            ProcMacroKind::Derive => templates::DERIVE_CRATE_TMPL.to_string(),
-            ProcMacroKind::Function => templates::FUNCTION_CRATE_TMPL.to_string(),
+            ProcMacroKind::Attr => templates::ATTR_CRATE_TMPL.replace("@NAME@", &snake_name),
+            ProcMacroKind::Derive => templates::DERIVE_CRATE_TMPL.replace("@NAME@", &snake_name),
+            ProcMacroKind::Function => templates::FUNCTION_CRATE_TMPL.replace("@NAME@", &snake_name),
         }
     }
 }
@@ -147,11 +175,11 @@ proc-macro2 = \"1\"",
 }
 
 // Make "real" proc-macro crate
-fn create_base_crate(path: &Path, name: &str, macro_type: ProcMacroKind) -> Result<(), Error> {
+fn create_base_crate(path: &Path, name: &str, macro_kind: ProcMacroKind) -> Result<(), Error> {
     let base_path = path.join(&name);
     cargo_new_lib(&base_path)?;
 
-    let lib_rs_output = macro_type.base_impl(name);
+    let lib_rs_output = macro_kind.base_impl(name);
     let lib_rs_path = base_path.join("src").join("lib.rs");
     fs::write(&lib_rs_path, lib_rs_output)
         .map_err(|e| Error::WriteFailed(e, lib_rs_path.clone()))?;
@@ -161,11 +189,11 @@ fn create_base_crate(path: &Path, name: &str, macro_type: ProcMacroKind) -> Resu
 }
 
 // Make macro crate with actual logic
-fn create_macro_crate(path: &Path, name: &str, macro_type: ProcMacroKind) -> Result<(), Error> {
+fn create_macro_crate(path: &Path, name: &str, macro_kind: ProcMacroKind) -> Result<(), Error> {
     let macro_path = path.join(&format!("{}_macro", name));
     cargo_new_lib(&macro_path)?;
 
-    let lib_rs_output = macro_type.crate_impl(name);
+    let lib_rs_output = macro_kind.crate_impl(name);
     let lib_rs_path = path
         .join(&format!("{}_macro", name))
         .join("src")
@@ -199,7 +227,7 @@ fn create_workspace(path: &Path, name: &str) -> Result<(), Error> {
     .map_err(|e| Error::WriteFailed(e, workspace_cargo_toml))
 }
 
-fn create_crates(path: PathBuf, name: Option<String>) -> Result<String, Error> {
+fn create_crates(path: PathBuf, name: Option<String>, kind: ProcMacroKind) -> Result<String, Error> {
     let name = match name {
         Some(v) => v,
         None => match path.file_name() {
@@ -208,8 +236,8 @@ fn create_crates(path: PathBuf, name: Option<String>) -> Result<String, Error> {
         },
     };
 
-    create_base_crate(&path, &*name, ProcMacroKind::Attr)?;
-    create_macro_crate(&path, &*name, ProcMacroKind::Attr)?;
+    create_base_crate(&path, &*name, kind)?;
+    create_macro_crate(&path, &*name, kind)?;
     create_workspace(&path, &*name)?;
 
     Ok(name)
@@ -236,7 +264,7 @@ pub(crate) fn run(args: Vec<String>) -> Result<(), Error> {
                 exit(0)
             }
 
-            create_crates(a.path, a.name)?
+            create_crates(a.path, a.name, a.kind)?
         }
         Some(Subcommand::Init(a)) => {
             if a.help {
@@ -247,7 +275,7 @@ pub(crate) fn run(args: Vec<String>) -> Result<(), Error> {
             let path = a
                 .path
                 .unwrap_or_else(|| current_dir().expect("Could not resolve current directory"));
-            create_crates(path, a.name)?
+            create_crates(path, a.name, a.kind)?
         }
         None => {
             Args::print_usage();
