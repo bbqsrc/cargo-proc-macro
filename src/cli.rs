@@ -79,6 +79,30 @@ impl Args {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
+enum ProcMacroKind {
+    Attr,
+    Derive,
+    Function,
+}
+
+impl ProcMacroKind {
+    pub fn base_impl(&self, name: &str) -> String {
+        match self {
+            ProcMacroKind::Attr => templates::ATTR_BASE_TMPL.replace("@NAME@", &name.replace("-", "_")),
+            ProcMacroKind::Derive => templates::DERIVE_BASE_TMPL.to_string(),
+            ProcMacroKind::Function => templates::FUNCTION_BASE_TMPL.to_string(),
+        }
+    }
+    pub fn crate_impl(&self, name: &str) -> String {
+        match self {
+            ProcMacroKind::Attr => templates::ATTR_CRATE_TMPL.replace("@NAME@", &name.replace("-", "_")),
+            ProcMacroKind::Derive => templates::DERIVE_CRATE_TMPL.to_string(),
+            ProcMacroKind::Function => templates::FUNCTION_CRATE_TMPL.to_string(),
+        }
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum Error {
     #[error("Could not resolve a package name for the given directory.")]
@@ -123,11 +147,11 @@ proc-macro2 = \"1\"",
 }
 
 // Make "real" proc-macro crate
-fn create_base_crate(path: &Path, name: &str) -> Result<(), Error> {
+fn create_base_crate(path: &Path, name: &str, macro_type: ProcMacroKind) -> Result<(), Error> {
     let base_path = path.join(&name);
     cargo_new_lib(&base_path)?;
 
-    let lib_rs_output = templates::ATTR_BASE_TMPL.replace("@NAME@", &name.replace("-", "_"));
+    let lib_rs_output = macro_type.base_impl(name);
     let lib_rs_path = base_path.join("src").join("lib.rs");
     fs::write(&lib_rs_path, lib_rs_output)
         .map_err(|e| Error::WriteFailed(e, lib_rs_path.clone()))?;
@@ -137,11 +161,11 @@ fn create_base_crate(path: &Path, name: &str) -> Result<(), Error> {
 }
 
 // Make macro crate with actual logic
-fn create_macro_crate(path: &Path, name: &str) -> Result<(), Error> {
+fn create_macro_crate(path: &Path, name: &str, macro_type: ProcMacroKind) -> Result<(), Error> {
     let macro_path = path.join(&format!("{}_macro", name));
     cargo_new_lib(&macro_path)?;
 
-    let lib_rs_output = templates::ATTR_CRATE_TMPL.replace("@NAME@", &name.replace("-", "_"));
+    let lib_rs_output = macro_type.crate_impl(name);
     let lib_rs_path = path
         .join(&format!("{}_macro", name))
         .join("src")
@@ -184,8 +208,8 @@ fn create_crates(path: PathBuf, name: Option<String>) -> Result<String, Error> {
         },
     };
 
-    create_base_crate(&path, &*name)?;
-    create_macro_crate(&path, &*name)?;
+    create_base_crate(&path, &*name, ProcMacroKind::Attr)?;
+    create_macro_crate(&path, &*name, ProcMacroKind::Attr)?;
     create_workspace(&path, &*name)?;
 
     Ok(name)
