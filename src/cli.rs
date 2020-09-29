@@ -116,17 +116,47 @@ impl ProcMacroKind {
     pub fn base_impl(&self, name: &str) -> String {
         let snake_name = name.replace("-", "_");
         match self {
-            ProcMacroKind::Attr => templates::ATTR_BASE_TMPL.replace("@NAME@", &snake_name),
-            ProcMacroKind::Derive => templates::DERIVE_BASE_TMPL.replace("@NAME@", &snake_name),
-            ProcMacroKind::Function => templates::FUNCTION_BASE_TMPL.replace("@NAME@", &snake_name),
+            ProcMacroKind::Attr =>
+                templates::ATTR_BASE_TMPL
+                 .replace("@SNAKE_NAME@", &snake_name),
+            ProcMacroKind::Derive =>
+                templates::DERIVE_BASE_TMPL
+                 .replace("@NAME@", name)
+                 .replace("@SNAKE_NAME@", &snake_name),
+            ProcMacroKind::Function =>
+                templates::FUNCTION_BASE_TMPL
+                .replace("@SNAKE_NAME@", &snake_name),
         }
     }
     pub fn crate_impl(&self, name: &str) -> String {
         let snake_name = name.replace("-", "_");
         match self {
-            ProcMacroKind::Attr => templates::ATTR_CRATE_TMPL.replace("@NAME@", &snake_name),
-            ProcMacroKind::Derive => templates::DERIVE_CRATE_TMPL.replace("@NAME@", &snake_name),
-            ProcMacroKind::Function => templates::FUNCTION_CRATE_TMPL.replace("@NAME@", &snake_name),
+            ProcMacroKind::Attr =>
+                templates::ATTR_CRATE_TMPL
+                 .replace("@SNAKE_NAME@", &snake_name),
+            ProcMacroKind::Derive =>
+                templates::DERIVE_CRATE_TMPL
+                 .replace("@SNAKE_NAME@", &snake_name),
+            ProcMacroKind::Function =>
+                templates::FUNCTION_CRATE_TMPL
+                 .replace("@NAME@", &snake_name),
+        }
+    }
+    pub fn workspace_msg(&self, name: &str) -> String {
+        let snake_name = name.replace("-", "_");
+        match self {
+            ProcMacroKind::Attr =>
+                templates::ATTR_WKSP_MSG
+                 .replace("@NAME@", &name)
+                 .replace("@SNAKE_NAME@", &snake_name),
+            ProcMacroKind::Derive =>
+                templates::DERIVE_WKSP_MSG
+                 .replace("@NAME@", &name)
+                 .replace("@SNAKE_NAME@", &snake_name),
+            ProcMacroKind::Function =>
+                templates::FUNCTION_WKSP_MSG
+                 .replace("@NAME@", &name)
+                 .replace("@SNAKE_NAME@", &snake_name),
         }
     }
 }
@@ -240,6 +270,7 @@ fn create_crates(path: PathBuf, name: Option<String>, kind: ProcMacroKind) -> Re
     create_macro_crate(&path, &*name, kind)?;
     create_workspace(&path, &*name)?;
 
+    println!("{}", kind.workspace_msg(&name));
     Ok(name)
 }
 
@@ -257,14 +288,15 @@ pub(crate) fn run(args: Vec<String>) -> Result<(), Error> {
         }
     };
 
-    let name = match args.command {
+    match args.command {
         Some(Subcommand::New(a)) => {
             if a.help {
                 NewArgs::print_usage();
                 exit(0)
             }
 
-            create_crates(a.path, a.name, a.kind)?
+            create_crates(a.path, a.name, a.kind)?;
+            Ok(())
         }
         Some(Subcommand::Init(a)) => {
             if a.help {
@@ -275,28 +307,12 @@ pub(crate) fn run(args: Vec<String>) -> Result<(), Error> {
             let path = a
                 .path
                 .unwrap_or_else(|| current_dir().expect("Could not resolve current directory"));
-            create_crates(path, a.name, a.kind)?
+            create_crates(path, a.name, a.kind)?;
+            Ok(())
         }
         None => {
             Args::print_usage();
             exit(2);
         }
-    };
-
-    println!(
-        "-- Created workspace with `{name}` and `{name}_macro` crates.",
-        name = &name
-    );
-    println!();
-    println!(
-        "`{name}` is the crate you should use in Rust projects. For example:",
-        name = &name
-    );
-    println!();
-    println!("    use {name}::{name};", name = &name);
-    println!("    #[{name}]", name = &name);
-    println!("    fn some_compatible_element() {{ ... }}");
-    println!();
-    println!("The testable logic for your macro lives in `{name}_macro` and is a dependency of `{name}`.", name = &name);
-    Ok(())
+    }
 }
