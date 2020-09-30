@@ -36,7 +36,6 @@ pub const ATTR_WKSP_MSG: &str = "-- Created workspace with `@NAME@` and `@NAME@_
 
 The testable logic for your macro lives in `@NAME@_macro` and is a dependency of `@NAME@`.";
 
-
 pub const DERIVE_BASE_TMPL: &str = "extern crate proc_macro;
 
 use proc_macro::TokenStream;
