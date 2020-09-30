@@ -8,6 +8,7 @@ use std::{
 };
 
 use gumdrop::Options;
+use heck::{KebabCase, CamelCase};
 
 mod templates;
 
@@ -122,7 +123,8 @@ impl ProcMacroKind {
             ProcMacroKind::Derive =>
                 templates::DERIVE_BASE_TMPL
                  .replace("@NAME@", name)
-                 .replace("@SNAKE_NAME@", &snake_name),
+                 .replace("@SNAKE_NAME@", &snake_name)
+                 .replace("@STRUCT_NAME@", &name.to_camel_case()),
             ProcMacroKind::Function =>
                 templates::FUNCTION_BASE_TMPL
                 .replace("@SNAKE_NAME@", &snake_name),
@@ -152,7 +154,8 @@ impl ProcMacroKind {
             ProcMacroKind::Derive =>
                 templates::DERIVE_WKSP_MSG
                  .replace("@NAME@", &name)
-                 .replace("@SNAKE_NAME@", &snake_name),
+                 .replace("@SNAKE_NAME@", &snake_name)
+                 .replace("@STRUCT_NAME@", &name.to_camel_case()),
             ProcMacroKind::Function =>
                 templates::FUNCTION_WKSP_MSG
                  .replace("@NAME@", &name)
@@ -259,9 +262,18 @@ fn create_workspace(path: &Path, name: &str) -> Result<(), Error> {
 
 fn create_crates(path: PathBuf, name: Option<String>, kind: ProcMacroKind) -> Result<String, Error> {
     let name = match name {
+        // don't modify user-specified names,
         Some(v) => v,
         None => match path.file_name() {
-            Some(v) => v.to_string_lossy().to_string(),
+            Some(v) => {
+                let v = v.to_string_lossy().to_string();
+                // modify CamelCase names, leave snake_case alone
+                if !v.contains('_') {
+                    v.to_kebab_case()
+                } else {
+                    v
+                }
+            },
             None => return Err(Error::NameResolutionFailed),
         },
     };
