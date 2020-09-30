@@ -42,7 +42,7 @@ pub const DERIVE_BASE_TMPL: &str = "extern crate proc_macro;
 use proc_macro::TokenStream;
 use syn::parse_macro_input;
 
-#[proc_macro_derive(@NAME@)]
+#[proc_macro_derive(@STRUCT_NAME@)]
 pub fn derive_@SNAKE_NAME@(item: TokenStream) -> TokenStream {
     let item = parse_macro_input!(item as proc_macro2::TokenStream);
 
@@ -66,8 +66,8 @@ pub const DERIVE_WKSP_MSG: &str = "-- Created workspace with `@NAME@` and `@NAME
 
 `@NAME@` is the crate you should use in Rust projects. For example:
 
-    use @SNAKE_NAME@::@SNAKE_NAME@;
-    #[derive(@NAME@)]
+    use @SNAKE_NAME@::@STRUCT_NAME@;
+    #[derive(@STRUCT_NAME@)]
     struct SomeStruct;
 
 The testable logic for your macro lives in `@NAME@_macro` and is a dependency of `@NAME@`.";
