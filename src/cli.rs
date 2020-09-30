@@ -8,7 +8,7 @@ use std::{
 };
 
 use gumdrop::Options;
-use heck::{KebabCase, CamelCase};
+use heck::{CamelCase, KebabCase};
 
 mod templates;
 
@@ -46,11 +46,13 @@ struct NewArgs {
     #[options(free, help = "Create a new proc-macro crate set at <path>")]
     path: PathBuf,
 
-    #[options(default = "attribute",
-              help = "Specify the proc-macro kind:
+    #[options(
+        default = "attribute",
+        help = "Specify the proc-macro kind:
                      \tattribute: --kind={a, attr, attribute}
                      \tderive: --kind={d, derive}
-                     \tfunction-like: --kind={f, function}")]
+                     \tfunction-like: --kind={f, function}"
+    )]
     kind: ProcMacroKind,
 
     #[options(help = "Prints help information")]
@@ -68,11 +70,13 @@ struct InitArgs {
     #[options(free, help = "Create a new proc-macro crate set at <path>")]
     path: Option<PathBuf>,
 
-    #[options(default = "attribute",
-              help = "Specify the proc-macro kind:
+    #[options(
+        default = "attribute",
+        help = "Specify the proc-macro kind:
                      \tattribute: --kind={a, attr, attribute}
                      \tderive: --kind={d, derive}
-                     \tfunction-like: --kind={f, function}")]
+                     \tfunction-like: --kind={f, function}"
+    )]
     kind: ProcMacroKind,
 
     #[options(help = "Prints help information")]
@@ -117,49 +121,41 @@ impl ProcMacroKind {
     pub fn base_impl(&self, name: &str) -> String {
         let snake_name = name.replace("-", "_");
         match self {
-            ProcMacroKind::Attr =>
-                templates::ATTR_BASE_TMPL
-                 .replace("@SNAKE_NAME@", &snake_name),
-            ProcMacroKind::Derive =>
-                templates::DERIVE_BASE_TMPL
-                 .replace("@NAME@", name)
-                 .replace("@SNAKE_NAME@", &snake_name)
-                 .replace("@STRUCT_NAME@", &name.to_camel_case()),
-            ProcMacroKind::Function =>
-                templates::FUNCTION_BASE_TMPL
-                .replace("@SNAKE_NAME@", &snake_name),
+            ProcMacroKind::Attr => templates::ATTR_BASE_TMPL.replace("@SNAKE_NAME@", &snake_name),
+            ProcMacroKind::Derive => templates::DERIVE_BASE_TMPL
+                .replace("@NAME@", name)
+                .replace("@SNAKE_NAME@", &snake_name)
+                .replace("@STRUCT_NAME@", &name.to_camel_case()),
+            ProcMacroKind::Function => {
+                templates::FUNCTION_BASE_TMPL.replace("@SNAKE_NAME@", &snake_name)
+            }
         }
     }
     pub fn crate_impl(&self, name: &str) -> String {
         let snake_name = name.replace("-", "_");
         match self {
-            ProcMacroKind::Attr =>
-                templates::ATTR_CRATE_TMPL
-                 .replace("@SNAKE_NAME@", &snake_name),
-            ProcMacroKind::Derive =>
-                templates::DERIVE_CRATE_TMPL
-                 .replace("@SNAKE_NAME@", &snake_name),
-            ProcMacroKind::Function =>
-                templates::FUNCTION_CRATE_TMPL
-                 .replace("@SNAKE_NAME@", &snake_name),
+            ProcMacroKind::Attr => templates::ATTR_CRATE_TMPL.replace("@SNAKE_NAME@", &snake_name),
+            ProcMacroKind::Derive => {
+                templates::DERIVE_CRATE_TMPL.replace("@SNAKE_NAME@", &snake_name)
+            }
+            ProcMacroKind::Function => {
+                templates::FUNCTION_CRATE_TMPL.replace("@SNAKE_NAME@", &snake_name)
+            }
         }
     }
     pub fn workspace_msg(&self, name: &str) -> String {
         let snake_name = name.replace("-", "_");
         match self {
-            ProcMacroKind::Attr =>
-                templates::ATTR_WKSP_MSG
-                 .replace("@NAME@", &name)
-                 .replace("@SNAKE_NAME@", &snake_name),
-            ProcMacroKind::Derive =>
-                templates::DERIVE_WKSP_MSG
-                 .replace("@NAME@", &name)
-                 .replace("@SNAKE_NAME@", &snake_name)
-                 .replace("@STRUCT_NAME@", &name.to_camel_case()),
-            ProcMacroKind::Function =>
-                templates::FUNCTION_WKSP_MSG
-                 .replace("@NAME@", &name)
-                 .replace("@SNAKE_NAME@", &snake_name),
+            ProcMacroKind::Attr => templates::ATTR_WKSP_MSG
+                .replace("@NAME@", &name)
+                .replace("@SNAKE_NAME@", &snake_name),
+            ProcMacroKind::Derive => templates::DERIVE_WKSP_MSG
+                .replace("@NAME@", &name)
+                .replace("@SNAKE_NAME@", &snake_name)
+                .replace("@STRUCT_NAME@", &name.to_camel_case()),
+            ProcMacroKind::Function => templates::FUNCTION_WKSP_MSG
+                .replace("@NAME@", &name)
+                .replace("@SNAKE_NAME@", &snake_name),
         }
     }
 }
@@ -260,7 +256,11 @@ fn create_workspace(path: &Path, name: &str) -> Result<(), Error> {
     .map_err(|e| Error::WriteFailed(e, workspace_cargo_toml))
 }
 
-fn create_crates(path: PathBuf, name: Option<String>, kind: ProcMacroKind) -> Result<String, Error> {
+fn create_crates(
+    path: PathBuf,
+    name: Option<String>,
+    kind: ProcMacroKind,
+) -> Result<String, Error> {
     let name = match name {
         // don't modify user-specified names,
         Some(v) => v,
@@ -273,7 +273,7 @@ fn create_crates(path: PathBuf, name: Option<String>, kind: ProcMacroKind) -> Re
                 } else {
                     v
                 }
-            },
+            }
             None => return Err(Error::NameResolutionFailed),
         },
     };
