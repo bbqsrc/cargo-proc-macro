@@ -43,11 +43,10 @@ use proc_macro::TokenStream;
 use syn::parse_macro_input;
 
 #[proc_macro_derive(@NAME@)]
-pub fn derive_@SNAKE_NAME@(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let attr = parse_macro_input!(attr as proc_macro2::TokenStream);
+pub fn derive_@SNAKE_NAME@(item: TokenStream) -> TokenStream {
     let item = parse_macro_input!(item as proc_macro2::TokenStream);
 
-    match @SNAKE_NAME@_macro::derive_@SNAKE_NAME@(attr, item) {
+    match @SNAKE_NAME@_macro::derive_@SNAKE_NAME@(item) {
         Ok(tokens) => tokens.into(),
         Err(err) => TokenStream::from(err.to_compile_error()),
     }
