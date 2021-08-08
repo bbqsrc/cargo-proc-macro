@@ -1,5 +1,34 @@
 // SPDX-License-Identifier: EUPL-1.2+
 
+pub const WKSP_MSG_HEADER: &str =
+    "`@NAME@` is the crate you should use in Rust projects. For example:";
+
+pub const WKSP_MSG_FOOTER: &str =
+    "The testable logic for your macro lives in `impl`. The proc-macro itself is
+implemented in the `macro` directory, and is a dependency of `@NAME@`.";
+
+pub const WKSP_ATTR_EXAMPLE: &str = "
+use @SNAKE_NAME@::@SNAKE_NAME@;
+
+#[@SNAKE_NAME@]
+fn some_compatible_element() { ... }
+";
+
+pub const WKSP_DERIVE_EXAMPLE: &str = "
+use @SNAKE_NAME@::@STRUCT_NAME@;
+
+#[derive(@STRUCT_NAME@)]
+struct SomeStruct;
+";
+
+pub const WKSP_FUNCTION_EXAMPLE: &str = "
+use @SNAKE_NAME@::@SNAKE_NAME@;
+
+fn some_fn() {
+    @SNAKE_NAME@!(...);
+}
+";
+
 pub const ATTR_LIB_TMPL: &str = "#[doc(inline)]
 pub use @SNAKE_NAME@_macro::@SNAKE_NAME@;
 ";
@@ -49,18 +78,6 @@ mod tests {
 }
 ";
 
-pub const ATTR_WKSP_MSG: &str = "-- Created workspace for `@NAME@`.
-
-`@NAME@` is the crate you should use in Rust projects. For example:
-
-    use @SNAKE_NAME@::@SNAKE_NAME@;
-
-    #[@SNAKE_NAME@]
-    fn some_compatible_element() { ... }
-
-The testable logic for your macro lives in `impl`. The proc-macro itself is
-implemented in the `macro` directory, and is a dependency of `@NAME@`.";
-
 pub const DERIVE_LIB_TMPL: &str = "#[doc(inline)]
 pub use @SNAKE_NAME@_macro::@STRUCT_NAME@;
 ";
@@ -100,18 +117,6 @@ pub fn derive_@SNAKE_NAME@(_item: TokenStream) -> Result<TokenStream, syn::Error
 }
 ";
 
-pub const DERIVE_WKSP_MSG: &str = "-- Created workspace for `@NAME@`.
-
-`@NAME@` is the crate you should use in Rust projects. For example:
-
-    use @SNAKE_NAME@::@STRUCT_NAME@;
-
-    #[derive(@STRUCT_NAME@)]
-    struct SomeStruct;
-
-The testable logic for your macro lives in `impl`. The proc-macro itself is
-implemented in the `macro` directory, and is a dependency of `@NAME@`.";
-
 pub const FUNCTION_LIB_TMPL: &str = "#[doc(inline)]
 pub use @SNAKE_NAME@_macro::@SNAKE_NAME@;
 ";
@@ -150,16 +155,3 @@ pub fn @SNAKE_NAME@(_item: TokenStream) -> Result<TokenStream, syn::Error> {
     })
 }
 ";
-
-pub const FUNCTION_WKSP_MSG: &str = "-- Created workspace for `@NAME@`.
-
-`@NAME@` is the crate you should use in Rust projects. For example:
-
-    use @SNAKE_NAME@::@SNAKE_NAME@;
-    
-    fn some_fn() {
-        @SNAKE_NAME@!(...);
-    }
-
-The testable logic for your macro lives in `impl`. The proc-macro itself is
-implemented in the `macro` directory, and is a dependency of `@NAME@`.";

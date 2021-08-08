@@ -3,12 +3,14 @@
 use std::{
     env::current_dir,
     fs,
+    io::Write,
     path::{Path, PathBuf},
     process::{self, exit, Command},
 };
 
 use gumdrop::Options;
 use heck::{CamelCase, KebabCase};
+use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 mod templates;
 
@@ -159,20 +161,63 @@ impl ProcMacroKind {
         }
     }
 
-    pub fn workspace_msg(&self, name: &str) -> String {
+    pub fn print_workspace_msg(&self, path: &Path, name: &str) {
+        let choice = if atty::is(atty::Stream::Stdout) {
+            ColorChoice::Auto
+        } else {
+            ColorChoice::Never
+        };
+        let mut stdout = StandardStream::stdout(choice);
+
         let snake_name = name.replace("-", "_");
-        match self {
-            ProcMacroKind::Attr => templates::ATTR_WKSP_MSG
+
+        let header = templates::WKSP_MSG_HEADER.replace("@NAME@", &name);
+        let footer = templates::WKSP_MSG_FOOTER.replace("@NAME@", &name);
+        let example = match self {
+            ProcMacroKind::Attr => templates::WKSP_ATTR_EXAMPLE
                 .replace("@NAME@", &name)
                 .replace("@SNAKE_NAME@", &snake_name),
-            ProcMacroKind::Derive => templates::DERIVE_WKSP_MSG
+            ProcMacroKind::Derive => templates::WKSP_DERIVE_EXAMPLE
                 .replace("@NAME@", &name)
                 .replace("@SNAKE_NAME@", &snake_name)
                 .replace("@STRUCT_NAME@", &name.to_camel_case()),
-            ProcMacroKind::Function => templates::FUNCTION_WKSP_MSG
+            ProcMacroKind::Function => templates::WKSP_FUNCTION_EXAMPLE
                 .replace("@NAME@", &name)
                 .replace("@SNAKE_NAME@", &snake_name),
+        };
+
+        stdout
+            .set_color(ColorSpec::new().set_bold(true).set_fg(Some(Color::Green)))
+            .unwrap();
+        stdout.write_fmt(format_args!("    Created")).unwrap();
+        stdout.reset().unwrap();
+        stdout
+            .write_fmt(format_args!(
+                " workspace `{}` with members `impl` and `macro`\n",
+                path.display()
+            ))
+            .unwrap();
+
+        stdout
+            .set_color(ColorSpec::new().set_fg(Some(Color::Cyan)).set_bold(true))
+            .unwrap();
+        write!(&mut stdout, "help: ").unwrap();
+        stdout.reset().unwrap();
+
+        writeln!(&mut stdout, "{}", header).unwrap();
+
+        for line in example.split("\n") {
+            stdout
+                .set_color(ColorSpec::new().set_bold(true).set_fg(Some(Color::Blue)))
+                .unwrap();
+            write!(&mut stdout, "    ").unwrap();
+            stdout.reset().unwrap();
+            writeln!(&mut stdout, "{}", line).unwrap();
         }
+
+        stdout.reset().unwrap();
+
+        writeln!(&mut stdout, "{}", footer).unwrap();
     }
 }
 
@@ -343,7 +388,7 @@ fn create_crates(
     create_impl_crate(&path, &*name, kind)?;
     create_macro_crate(&path, &*name, kind)?;
 
-    println!("{}", kind.workspace_msg(&name));
+    kind.print_workspace_msg(&path, &name);
     Ok(name)
 }
 
