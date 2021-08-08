@@ -1,108 +1,165 @@
 // SPDX-License-Identifier: EUPL-1.2+
 
-pub const ATTR_BASE_TMPL: &str = "extern crate proc_macro;
+pub const ATTR_LIB_TMPL: &str = "#[doc(inline)]
+pub use @SNAKE_NAME@_macro::@SNAKE_NAME@;
+";
+
+pub const ATTR_MACRO_TMPL: &str =
+    "//! This crate implements the macro for `@SNAKE_NAME@` and should not be used directly.
+extern crate proc_macro;
 
 use proc_macro::TokenStream;
 use syn::parse_macro_input;
 
 #[proc_macro_attribute]
+/// Document your macro here.
 pub fn @SNAKE_NAME@(attr: TokenStream, item: TokenStream) -> TokenStream {
     let attr = parse_macro_input!(attr as proc_macro2::TokenStream);
     let item = parse_macro_input!(item as proc_macro2::TokenStream);
 
-    match @SNAKE_NAME@_macro::@SNAKE_NAME@(attr, item) {
+    match @SNAKE_NAME@_impl::@SNAKE_NAME@(attr, item) {
         Ok(tokens) => tokens.into(),
         Err(err) => TokenStream::from(err.to_compile_error()),
     }
 }
 ";
 
-pub const ATTR_CRATE_TMPL: &str = "use proc_macro2::TokenStream;
+pub const ATTR_IMPL_TMPL: &str =
+    "//! This crate implements the macro for `@SNAKE_NAME@` and should not be used directly.
+
+use proc_macro2::TokenStream;
 use quote::quote;
 
-pub fn @SNAKE_NAME@(attr: TokenStream, item: TokenStream) -> Result<TokenStream, syn::Error> {
+#[doc(hidden)]
+pub fn @SNAKE_NAME@(_attr: TokenStream, _item: TokenStream) -> Result<TokenStream, syn::Error> {
     // Implement your proc-macro logic here. :)
-    Ok(item)
+    Ok(quote! {
+        \"Hello world!\"
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn example() {
+        assert!(@SNAKE_NAME@(quote! {}, quote! {}).is_ok());
+    }
 }
 ";
 
-pub const ATTR_WKSP_MSG: &str = "-- Created workspace with `@NAME@` and `@NAME@_macro` crates.
+pub const ATTR_WKSP_MSG: &str = "-- Created workspace for `@NAME@`.
 
 `@NAME@` is the crate you should use in Rust projects. For example:
 
     use @SNAKE_NAME@::@SNAKE_NAME@;
+
     #[@SNAKE_NAME@]
     fn some_compatible_element() { ... }
 
-The testable logic for your macro lives in `@NAME@_macro` and is a dependency of `@NAME@`.";
+The testable logic for your macro lives in `impl`. The proc-macro itself is
+implemented in the `macro` directory, and is a dependency of `@NAME@`.";
 
-pub const DERIVE_BASE_TMPL: &str = "extern crate proc_macro;
+pub const DERIVE_LIB_TMPL: &str = "#[doc(inline)]
+pub use @SNAKE_NAME@_macro::@STRUCT_NAME@;
+";
+
+pub const DERIVE_MACRO_TMPL: &str =
+    "//! This crate implements the macro for `@SNAKE_NAME@` and should not be used directly.
+
+extern crate proc_macro;
 
 use proc_macro::TokenStream;
 use syn::parse_macro_input;
 
 #[proc_macro_derive(@STRUCT_NAME@)]
+/// Document your macro here.
 pub fn derive_@SNAKE_NAME@(item: TokenStream) -> TokenStream {
     let item = parse_macro_input!(item as proc_macro2::TokenStream);
 
-    match @SNAKE_NAME@_macro::derive_@SNAKE_NAME@(item) {
+    match @SNAKE_NAME@_impl::derive_@SNAKE_NAME@(item) {
         Ok(tokens) => tokens.into(),
         Err(err) => TokenStream::from(err.to_compile_error()),
     }
 }
 ";
 
-pub const DERIVE_CRATE_TMPL: &str = "use proc_macro2::TokenStream;
+pub const DERIVE_IMPL_TMPL: &str =
+    "//! This crate implements the macro for `@SNAKE_NAME@` and should not be used directly.
+
+use proc_macro2::TokenStream;
 use quote::quote;
 
-pub fn derive_@SNAKE_NAME@(item: TokenStream) -> Result<TokenStream, syn::Error> {
+#[doc(hidden)]
+pub fn derive_@SNAKE_NAME@(_item: TokenStream) -> Result<TokenStream, syn::Error> {
     // Implement your proc-macro logic here. :)
-    Ok(item)
+    Ok(quote! {
+        \"Hello world!\"
+    })
 }
 ";
 
-pub const DERIVE_WKSP_MSG: &str = "-- Created workspace with `@NAME@` and `@NAME@_macro` crates.
+pub const DERIVE_WKSP_MSG: &str = "-- Created workspace for `@NAME@`.
 
 `@NAME@` is the crate you should use in Rust projects. For example:
 
     use @SNAKE_NAME@::@STRUCT_NAME@;
+
     #[derive(@STRUCT_NAME@)]
     struct SomeStruct;
 
-The testable logic for your macro lives in `@NAME@_macro` and is a dependency of `@NAME@`.";
+The testable logic for your macro lives in `impl`. The proc-macro itself is
+implemented in the `macro` directory, and is a dependency of `@NAME@`.";
 
-pub const FUNCTION_BASE_TMPL: &str = "extern crate proc_macro;
+pub const FUNCTION_LIB_TMPL: &str = "#[doc(inline)]
+pub use @SNAKE_NAME@_macro::@SNAKE_NAME@;
+";
+
+pub const FUNCTION_MACRO_TMPL: &str =
+    "//! This crate implements the macro for `@SNAKE_NAME@` and should not be used directly.
+
+extern crate proc_macro;
 
 use proc_macro::TokenStream;
 use syn::parse_macro_input;
 
 #[proc_macro]
+/// Document your macro here.
 pub fn @SNAKE_NAME@(item: TokenStream) -> TokenStream {
     let item = parse_macro_input!(item as proc_macro2::TokenStream);
 
-    match @SNAKE_NAME@_macro::@SNAKE_NAME@(item) {
+    match @SNAKE_NAME@_impl::@SNAKE_NAME@(item) {
         Ok(tokens) => tokens.into(),
         Err(err) => TokenStream::from(err.to_compile_error()),
     }
 }
 ";
 
-pub const FUNCTION_CRATE_TMPL: &str = "use proc_macro2::TokenStream;
+pub const FUNCTION_IMPL_TMPL: &str =
+    "//! This crate implements the macro for `@SNAKE_NAME@` and should not be used directly.
+
+use proc_macro2::TokenStream;
 use quote::quote;
 
-pub fn @SNAKE_NAME@(item: TokenStream) -> Result<TokenStream, syn::Error> {
+#[doc(hidden)]
+pub fn @SNAKE_NAME@(_item: TokenStream) -> Result<TokenStream, syn::Error> {
     // Implement your proc-macro logic here. :)
-    Ok(item)
+    Ok(quote! {
+        \"Hello world!\"
+    })
 }
 ";
 
-pub const FUNCTION_WKSP_MSG: &str = "-- Created workspace with `@NAME@` and `@NAME@_macro` crates.
+pub const FUNCTION_WKSP_MSG: &str = "-- Created workspace for `@NAME@`.
 
 `@NAME@` is the crate you should use in Rust projects. For example:
 
     use @SNAKE_NAME@::@SNAKE_NAME@;
+    
     fn some_fn() {
         @SNAKE_NAME@!(...);
     }
 
-The testable logic for your macro lives in `@NAME@_macro` and is a dependency of `@NAME@`.";
+The testable logic for your macro lives in `impl`. The proc-macro itself is
+implemented in the `macro` directory, and is a dependency of `@NAME@`.";

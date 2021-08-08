@@ -118,31 +118,47 @@ impl std::str::FromStr for ProcMacroKind {
 }
 
 impl ProcMacroKind {
-    pub fn base_impl(&self, name: &str) -> String {
+    pub fn lib_impl(&self, name: &str) -> String {
         let snake_name = name.replace("-", "_");
         match self {
-            ProcMacroKind::Attr => templates::ATTR_BASE_TMPL.replace("@SNAKE_NAME@", &snake_name),
-            ProcMacroKind::Derive => templates::DERIVE_BASE_TMPL
+            ProcMacroKind::Attr => templates::ATTR_LIB_TMPL.replace("@SNAKE_NAME@", &snake_name),
+            ProcMacroKind::Derive => templates::DERIVE_LIB_TMPL
                 .replace("@NAME@", name)
                 .replace("@SNAKE_NAME@", &snake_name)
                 .replace("@STRUCT_NAME@", &name.to_camel_case()),
             ProcMacroKind::Function => {
-                templates::FUNCTION_BASE_TMPL.replace("@SNAKE_NAME@", &snake_name)
+                templates::FUNCTION_LIB_TMPL.replace("@SNAKE_NAME@", &snake_name)
             }
         }
     }
-    pub fn crate_impl(&self, name: &str) -> String {
+
+    pub fn macro_shim(&self, name: &str) -> String {
         let snake_name = name.replace("-", "_");
         match self {
-            ProcMacroKind::Attr => templates::ATTR_CRATE_TMPL.replace("@SNAKE_NAME@", &snake_name),
-            ProcMacroKind::Derive => {
-                templates::DERIVE_CRATE_TMPL.replace("@SNAKE_NAME@", &snake_name)
-            }
+            ProcMacroKind::Attr => templates::ATTR_MACRO_TMPL.replace("@SNAKE_NAME@", &snake_name),
+            ProcMacroKind::Derive => templates::DERIVE_MACRO_TMPL
+                .replace("@NAME@", name)
+                .replace("@SNAKE_NAME@", &snake_name)
+                .replace("@STRUCT_NAME@", &name.to_camel_case()),
             ProcMacroKind::Function => {
-                templates::FUNCTION_CRATE_TMPL.replace("@SNAKE_NAME@", &snake_name)
+                templates::FUNCTION_MACRO_TMPL.replace("@SNAKE_NAME@", &snake_name)
             }
         }
     }
+
+    pub fn macro_impl(&self, name: &str) -> String {
+        let snake_name = name.replace("-", "_");
+        match self {
+            ProcMacroKind::Attr => templates::ATTR_IMPL_TMPL.replace("@SNAKE_NAME@", &snake_name),
+            ProcMacroKind::Derive => {
+                templates::DERIVE_IMPL_TMPL.replace("@SNAKE_NAME@", &snake_name)
+            }
+            ProcMacroKind::Function => {
+                templates::FUNCTION_IMPL_TMPL.replace("@SNAKE_NAME@", &snake_name)
+            }
+        }
+    }
+
     pub fn workspace_msg(&self, name: &str) -> String {
         let snake_name = name.replace("-", "_");
         match self {
@@ -175,85 +191,129 @@ pub(crate) enum Error {
     WriteFailed(#[source] std::io::Error, PathBuf),
 }
 
-fn cargo_new_lib(path: &Path) -> Result<process::Output, Error> {
+fn cargo_new_lib(path: &Path, name: &str) -> Result<process::Output, Error> {
+    if path.join("Cargo.toml").exists() {
+        return Err(Error::CargoNewLibFailed(
+            std::io::Error::new(
+                std::io::ErrorKind::AlreadyExists,
+                "Cargo.toml already exists at this location",
+            ),
+            path.join("Cargo.toml"),
+        ));
+    }
+
     Command::new("cargo")
         .arg("new")
         .arg("--lib")
         .arg(&path)
+        .arg("--name")
+        .arg(name)
+        .args(&["--vcs", "none"])
         .output()
         .map_err(|e| Error::CargoNewLibFailed(e, path.to_path_buf()))
 }
 
-fn write_proc_macro_cargo_toml(path: PathBuf, name: &str) -> Result<(), Error> {
-    let toml = fs::read_to_string(&path).map_err(|e| Error::ReadFailed(e, path.clone()))?;
+fn cargo_new_workspace(path: &Path, name: &str) -> Result<(), Error> {
+    if path.join("Cargo.toml").exists() {
+        return Err(Error::CargoNewLibFailed(
+            std::io::Error::new(
+                std::io::ErrorKind::AlreadyExists,
+                "Cargo.toml already exists at this location",
+            ),
+            path.join("Cargo.toml"),
+        ));
+    }
+
+    Command::new("cargo")
+        .arg("new")
+        .arg("--lib")
+        .arg(&path)
+        .arg("--name")
+        .arg(name)
+        .output()
+        .map_err(|e| Error::CargoNewLibFailed(e, path.to_path_buf()))?;
+
+    let workspace_cargo_toml = path.join("Cargo.toml");
+    let toml = fs::read_to_string(&workspace_cargo_toml)
+        .map_err(|e| Error::ReadFailed(e, workspace_cargo_toml.clone()))?;
     let toml = toml.replace(
         "[dependencies]",
         &format!(
-            "[lib]
-proc-macro = true
+            "[dependencies]
+{name}-macro = {{ version = \"=0.1.0\", path = \"macro\" }}
 
-[dependencies]
-{name}_macro = {{ path = \"../{name}_macro\" }}
-syn = \"1\"
-proc-macro2 = \"1\"",
+[workspace]
+members = [\".\", \"impl\", \"macro\"]
+default-members = [\".\", \"impl\"]
+",
             name = name
         ),
     );
-    fs::write(&path, toml).map_err(|e| Error::WriteFailed(e, path))?;
+    fs::write(&workspace_cargo_toml, toml)
+        .map_err(|e| Error::WriteFailed(e, workspace_cargo_toml))?;
     Ok(())
 }
 
-// Make "real" proc-macro crate
-fn create_base_crate(path: &Path, name: &str, macro_kind: ProcMacroKind) -> Result<(), Error> {
-    let base_path = path.join(&name);
-    cargo_new_lib(&base_path)?;
+fn create_impl_crate(path: &Path, name: &str, macro_kind: ProcMacroKind) -> Result<(), Error> {
+    let impl_path = path.join("impl");
+    cargo_new_lib(&impl_path, &format!("{}-impl", name))?;
 
-    let lib_rs_output = macro_kind.base_impl(name);
-    let lib_rs_path = base_path.join("src").join("lib.rs");
-    fs::write(&lib_rs_path, lib_rs_output)
-        .map_err(|e| Error::WriteFailed(e, lib_rs_path.clone()))?;
-
-    write_proc_macro_cargo_toml(base_path.join("Cargo.toml"), &*name)?;
-    Ok(())
-}
-
-// Make macro crate with actual logic
-fn create_macro_crate(path: &Path, name: &str, macro_kind: ProcMacroKind) -> Result<(), Error> {
-    let macro_path = path.join(&format!("{}_macro", name));
-    cargo_new_lib(&macro_path)?;
-
-    let lib_rs_output = macro_kind.crate_impl(name);
-    let lib_rs_path = path
-        .join(&format!("{}_macro", name))
-        .join("src")
-        .join("lib.rs");
+    let lib_rs_output = macro_kind.macro_impl(name);
+    let lib_rs_path = impl_path.join("src").join("lib.rs");
     fs::write(&lib_rs_path, lib_rs_output).map_err(|e| Error::WriteFailed(e, lib_rs_path))?;
 
-    let macro_crate_cargo_toml = macro_path.join("Cargo.toml");
-    let mut toml = fs::read_to_string(&macro_crate_cargo_toml)
-        .map_err(|e| Error::ReadFailed(e, macro_crate_cargo_toml.clone()))?;
+    let impl_cargo_toml = impl_path.join("Cargo.toml");
+    let mut toml = fs::read_to_string(&impl_cargo_toml)
+        .map_err(|e| Error::ReadFailed(e, impl_cargo_toml.clone()))?;
     toml.push_str(
         "syn = { version = \"1\", features = [\"full\", \"extra-traits\"] }
 quote = \"1\"
 proc-macro2 = \"1\"
 ",
     );
-    fs::write(&macro_crate_cargo_toml, toml)
-        .map_err(|e| Error::WriteFailed(e, macro_crate_cargo_toml))?;
+    fs::write(&impl_cargo_toml, toml).map_err(|e| Error::WriteFailed(e, impl_cargo_toml))?;
     Ok(())
 }
 
-fn create_workspace(path: &Path, name: &str) -> Result<(), Error> {
-    let workspace_cargo_toml = path.join("Cargo.toml");
-    // Add workspace toml
-    fs::write(
-        &workspace_cargo_toml,
-        format!(
-            "[workspace]\nmembers = [\n  \"{name}\",\n  \"{name}_macro\",\n]",
-            name = &name
+fn create_macro_crate(path: &Path, name: &str, macro_kind: ProcMacroKind) -> Result<(), Error> {
+    let macro_path = path.join("macro");
+    cargo_new_lib(&macro_path, &format!("{}-macro", name))?;
+
+    let lib_rs_output = macro_kind.macro_shim(name);
+    let lib_rs_path = macro_path.join("src").join("lib.rs");
+    fs::write(&lib_rs_path, lib_rs_output).map_err(|e| Error::WriteFailed(e, lib_rs_path))?;
+
+    let macro_cargo_toml = macro_path.join("Cargo.toml");
+    let mut toml = fs::read_to_string(&macro_cargo_toml)
+        .map_err(|e| Error::ReadFailed(e, macro_cargo_toml.clone()))?;
+    toml = toml.replace(
+        "[dependencies]",
+        &format!(
+            "[lib]
+proc-macro = true
+
+[dependencies]
+{}-impl = {{ version = \"=0.1.0\", path = \"../impl\" }}
+syn = {{ version = \"1\", features = [\"full\", \"extra-traits\"] }}
+quote = \"1\"
+proc-macro2 = \"1\"",
+            name
         ),
-    )
-    .map_err(|e| Error::WriteFailed(e, workspace_cargo_toml))
+    );
+
+    fs::write(&macro_cargo_toml, toml).map_err(|e| Error::WriteFailed(e, macro_cargo_toml))?;
+    Ok(())
+}
+
+fn create_workspace(path: &Path, name: &str, macro_kind: ProcMacroKind) -> Result<(), Error> {
+    cargo_new_workspace(&path, name)?;
+
+    let lib_rs_output = macro_kind.lib_impl(name);
+    let lib_rs_path = path.join("src").join("lib.rs");
+    fs::write(&lib_rs_path, lib_rs_output)
+        .map_err(|e| Error::WriteFailed(e, lib_rs_path.clone()))?;
+
+    Ok(())
 }
 
 fn create_crates(
@@ -278,9 +338,10 @@ fn create_crates(
         },
     };
 
-    create_base_crate(&path, &*name, kind)?;
+    // create_lib_crate(&path, &*name, kind)?;
+    create_workspace(&path, &*name, kind)?;
+    create_impl_crate(&path, &*name, kind)?;
     create_macro_crate(&path, &*name, kind)?;
-    create_workspace(&path, &*name)?;
 
     println!("{}", kind.workspace_msg(&name));
     Ok(name)
