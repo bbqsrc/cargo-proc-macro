@@ -1,7 +1,7 @@
 [package]
 name = "cargo-proc-macro"
 description = "Kickstart a proc-macro project with a straight-forward template."
-version = "0.1.3"
+version = "0.2.0"
 authors = ["Brendan Molloy <brendan@bbqsrc.net>", "Max Orok <maxwellorok@gmail.com>"]
 repository = "https://github.com/bbqsrc/cargo-proc-macro"
 keywords = ["cargo", "proc-macro"]
